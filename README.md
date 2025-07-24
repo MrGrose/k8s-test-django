@@ -82,7 +82,6 @@ $ docker compose build web
 - django-configmap.yaml
 - django-secret.yaml      # создается по инструкции
 - django-deployment.yaml
-- django-service.yaml
 - django-ingress.yaml
 - django-migrate-job.yaml
 - django-clearsessions-cronjob.yaml
