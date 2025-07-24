@@ -4,8 +4,10 @@ metadata:
   name: django-clearsessions-once
 spec:
   schedule: "0 6 15 * *"
+  startingDeadlineSeconds: 600
   jobTemplate:
     spec:
+      ttlSecondsAfterFinished: 60
       template:
         spec:
           restartPolicy: OnFailure

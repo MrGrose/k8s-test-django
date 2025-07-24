@@ -21,7 +21,7 @@ spec:
           imagePullPolicy: Never
           envFrom:
             - configMapRef:
-                name: my-env-config
+                name: django-config
             - secretRef:
                 name: django-secret
           ports:
