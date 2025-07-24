@@ -98,12 +98,6 @@ $ docker compose build web
   - Настройте локальный hosts, [добавив в файл hosts](https://help.reg.ru/support/dns-servery-i-nastroyka-zony/rabota-s-dns-serverami/fayl-hosts-gde-nakhoditsya-i-kak-yego-izmenit) на вашей машине строку `127.0.0.1 star-burger.test`
   - Если вы используете Minikube и Ingress Controller, скорее всего, нужно запустить туннель: `minikube tunnel`
 
-3. Запуск Minikube
-```bash
-  minikube start
-```
 
-4. Применить все манифесты:
-```bash
-  kubectl apply -f kubernetes/
-```
+3. CronJob `django-clearsessions.yaml` для очистки сессий Django:
+  - CronJob настроен на запуск в 6:00 утра 15-го числа каждого месяца.
