@@ -96,24 +96,27 @@ $ docker compose build web
 *   Драйвер виртуализации: Minikube требует драйвер для запуска кластера (например, Docker Desktop).
 
 
-### Запуск Minikube кластера
+## 🚀 Пошаговое развёртывание в Minikube
 
-1. Запустите кластер с выделением ресурсов:
+### Шаг 1: Запуск Minikube кластера
+
+1. Запустите Minikube кластер. Рекомендуется выделить достаточно ресурсов для стабильной работы Django и PostgreSQL:
 ```bash
-minikube start
+minikube start --driver=docker --memory=4096mb --cpus=2
 ```
 
-2. Проверьте статус:
+2. Проверьте статус кластера, чтобы убедиться, что он запущен и все компоненты в порядке:
+
 ```bash
 minikube status
 ```
 
-3. Опционально откройте дашборд Kubernetes:
+3. Опционально откройте дашборд Kubernetes для визуального мониторинга кластера:
 ```bash
 minikube dashboard
 ```
+### Шаг 2: Настройка Ingress Controller и hosts-файла
 
-### Настройка Ingress
 1. Включите ingress-nginx контроллер:
 ```bash
 minikube addons enable ingress
@@ -123,14 +126,14 @@ minikube addons enable ingress
 minikube tunnel
 ```
 
-3. Добавьте в hosts-файл вашей ОС строку, где IP — вывод minikube ip:
+3. Добавьте в hosts-файл вашей ОС(C:\Windows\System32\drivers\etc\hosts для Windows или /etc/hosts для Linux/macOS) строку, где IP — вывод minikube ip:
 ```bash
 ваш_IP  star-burger.test
 ```
 
 
 
-### Развёртывание проекта 
+### Шаг 3: Развёртывание базы данных PostgreSQL с помощью Helm
 
 1. Создайте файл django-secret.yaml в kubernetes/ (укажите там свои SECRET_KEY и [DATABASE_URL](https://github.com/jazzband/dj-database-url)):
 ```yaml
@@ -150,40 +153,49 @@ stringData:
 ```bash
   helm registry login docker.io
 ```
-- Установка PostgreSQL с паролем для пользователя postgres
+- Установка PostgreSQL с паролем для пользователя postgres, замените yourpassword на желаемый пароль для пользователя postgres (и других, если вы их изменяете в DATABASE_URL):
 ```bash
   helm install my-postgres oci://registry-1.docker.io/bitnamicharts/postgresql --set auth.postgresPassword=yourpassword
 ```
-- Проверьте, что поды и PVC создались успешно:
+- Проверьте, что поды PostgreSQL и Persistent Volume Claims (PVC) создались успешно и находятся в статусе Running/Bound:
 ```bash
-  kubectl get pods
-  kubectl get pvc
+  kubectl get pods -l app.kubernetes.io/name=postgresql
+  kubectl get pvc -l app.kubernetes.io/name=postgresql
 ```
-- Подключение к PostgreSQL из кластера для проверки
+- Опционально: Подключитесь к PostgreSQL из кластера для проверки или миграции данных.
 ```bash
   kubectl run pg-client --rm -ti --image=postgres --env="PGPASSWORD=yourpassword" --command -- psql -h my-postgres-postgresql -U postgres
 ```
-- После изменения конфигурации перезапустите поды с приложением:
-```bash
-  kubectl rollout restart deployment django-deployment
-```
+### Шаг 4: Развёртывание Django приложения и сопутствующих компонентов
 
-3. Примените все манифесты одной командой:
-- CronJob настроен на запуск в 6:00 утра 15-го числа каждого месяца.
+1. Примените все Kubernetes манифесты из каталога kubernetes/. Это создаст Django Deployment, Service, Ingress, а также Job для миграций и CronJob для очистки сессий:
+    - Примечание: CronJob для очистки сессий настроен на запуск в 6:00 утра 15-го числа каждого месяца.
 ```bash
 kubectl apply -f kubernetes/
 ```
 
-4. Откройте в браузере:
+2. Если вам нужно запустить применение миграций в ручную, то воспользуйтесь командой:
+```bash
+kubectl apply -f kubernetes/django-migrate-job.yaml
+```
+3. После изменения конфигурации или первого деплоя, перезапустите поды Django для применения изменений:
+```bash
+kubectl rollout restart deployment django-deployment
+```
 
+### Шаг 5: Проверка развёртывания
+1. Убедитесь, что все поды запущены (Running и READY 1/1).
+```bash
+kubectl get pods
+```
+
+2. Проверьте сервисы:
+```bash
+kubectl get services
+```
+3. Проверьте Ingress: Убедитесь, что у django-ingress появился IP-адрес (должен совпадать с minikube ip).
+```bash
+kubectl get ingress
+```
+4. Откройте приложение в браузере:
 http://star-burger.test/
-
-
-
-
-
-
-
-
-
-
