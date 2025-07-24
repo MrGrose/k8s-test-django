@@ -1,0 +1,42 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-deployment
+  labels:
+    app: django
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: django
+  template:
+    metadata:
+      labels:
+        app: django
+    spec:
+      containers:
+        - name: django-app
+          image: django_app:latest
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: my-env-config
+            - secretRef:
+                name: django-secret
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: v1 
+kind: Service
+metadata:
+  name: django-service
+spec:
+  selector:
+    app: django
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP

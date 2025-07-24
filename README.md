@@ -92,12 +92,18 @@ $ docker compose build web
 ```
 Подробнее о формате [DATABASE_URL](https://github.com/jazzband/dj-database-url)
 
-2. Запуск Minikube
+2. Настройка [`ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/):
+  - Включите ingress-nginx контроллер `minikube addons enable ingress`
+  - Проверьте что контроллер запущен `kubectl get pods -n ingress-nginx`
+  - Настройте локальный hosts, [добавив в файл hosts](https://help.reg.ru/support/dns-servery-i-nastroyka-zony/rabota-s-dns-serverami/fayl-hosts-gde-nakhoditsya-i-kak-yego-izmenit) на вашей машине строку `127.0.0.1 star-burger.test`
+  - Если вы используете Minikube и Ingress Controller, скорее всего, нужно запустить туннель: `minikube tunnel`
+
+3. Запуск Minikube
 ```bash
   minikube start
 ```
 
-3. Применить все манифесты:
+4. Применить все манифесты:
 ```bash
   kubectl apply -f kubernetes/
 ```
