@@ -76,28 +76,115 @@ $ docker compose build web
 
 `DATABASE_URL` -- адрес для подключения к базе данных PostgreSQL. Другие СУБД сайт не поддерживает. [Формат записи](https://github.com/jacobian/dj-database-url#url-schema).
 
+---
+## Как развернуть проект в Minikube
+#### ✅ Структура каталога `kubernetes/`
+- django-configmap.yaml
+- django-secret.yaml      # создается по инструкции
+- django-deployment.yaml
+- django-service.yaml
+- django-ingress.yaml
+- django-migrate-job.yaml
+- django-clearsessions-cronjob.yaml
 
-### Как развернуть проект в Minikube
 
-1. Создайте в каталоге kubernetes/ секрет `django-secret.yaml`:
-```yaml
-  apiVersion: v1
-  kind: Secret
-  metadata:
-    name: django-secret
-  type: Opaque
-  stringData:
-    SECRET_KEY: "ваш_секретный_ключ_django"
-    DATABASE_URL: postgres://user:pass@host:port/db
+Для развёртывания проекта понадобится:
+
+*   `Docker`: Для локальной разработки и запуска контейнеров. Установите его с [официального сайта](https://docs.docker.com/get-docker/).
+*   ``Minikube``: Для создания локального Kubernetes кластера. Инструкции по установке: [Minikube Installation](https://minikube.sigs.k8s.io/docs/start/).
+*   `kubectl`: Инструмент командной строки для управления Kubernetes кластерами. Инструкции по установке: [kubectl Installation](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
+*   `Helm`: Менеджер пакетов для Kubernetes. Инструкции по установке: [Helm Installation](https://helm.sh/docs/intro/install/).
+*   Драйвер виртуализации: Minikube требует драйвер для запуска кластера (например, Docker Desktop).
+
+
+### Запуск Minikube кластера
+
+1. Запустите кластер с выделением ресурсов:
+```bash
+minikube start
 ```
-Подробнее о формате [DATABASE_URL](https://github.com/jazzband/dj-database-url)
 
-2. Настройка [`ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/):
-  - Включите ingress-nginx контроллер `minikube addons enable ingress`
-  - Проверьте что контроллер запущен `kubectl get pods -n ingress-nginx`
-  - Настройте локальный hosts, [добавив в файл hosts](https://help.reg.ru/support/dns-servery-i-nastroyka-zony/rabota-s-dns-serverami/fayl-hosts-gde-nakhoditsya-i-kak-yego-izmenit) на вашей машине строку `127.0.0.1 star-burger.test`
-  - Если вы используете Minikube и Ingress Controller, скорее всего, нужно запустить туннель: `minikube tunnel`
+2. Проверьте статус:
+```bash
+minikube status
+```
+
+3. Опционально откройте дашборд Kubernetes:
+```bash
+minikube dashboard
+```
+
+### Настройка Ingress
+1. Включите ingress-nginx контроллер:
+```bash
+minikube addons enable ingress
+```
+2. Запустите туннель для корректной маршрутизации:
+```bash
+minikube tunnel
+```
+
+3. Добавьте в hosts-файл вашей ОС строку, где IP — вывод minikube ip:
+```bash
+ваш_IP  star-burger.test
+```
 
 
-3. CronJob `django-clearsessions.yaml` для очистки сессий Django:
-  - CronJob настроен на запуск в 6:00 утра 15-го числа каждого месяца.
+
+### Развёртывание проекта 
+
+1. Создайте файл django-secret.yaml в kubernetes/ (укажите там свои SECRET_KEY и [DATABASE_URL](https://github.com/jazzband/dj-database-url)):
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: django-secret
+type: Opaque
+stringData:
+  SECRET_KEY: "ваш_секретный_ключ_django"
+  DATABASE_URL: postgres://test_k8s:OwOtBep9Frut@my-postgres-postgresql:5432/test_k8s
+```
+
+2. Развёртывание PostgreSQL в Minikube через [Helm](https://helm.sh/). Для установки PostgreSQL используем официальный [Helm chart от Bitnami](https://artifacthub.io/packages/helm/bitnami/postgresql).
+
+- Войти в Docker Hub (если требуется)
+```bash
+  helm registry login docker.io
+```
+- Установка PostgreSQL с паролем для пользователя postgres
+```bash
+  helm install my-postgres oci://registry-1.docker.io/bitnamicharts/postgresql --set auth.postgresPassword=yourpassword
+```
+- Проверьте, что поды и PVC создались успешно:
+```bash
+  kubectl get pods
+  kubectl get pvc
+```
+- Подключение к PostgreSQL из кластера для проверки
+```bash
+  kubectl run pg-client --rm -ti --image=postgres --env="PGPASSWORD=yourpassword" --command -- psql -h my-postgres-postgresql -U postgres
+```
+- После изменения конфигурации перезапустите поды с приложением:
+```bash
+  kubectl rollout restart deployment django-deployment
+```
+
+3. Примените все манифесты одной командой:
+- CronJob настроен на запуск в 6:00 утра 15-го числа каждого месяца.
+```bash
+kubectl apply -f kubernetes/
+```
+
+4. Откройте в браузере:
+
+http://star-burger.test/
+
+
+
+
+
+
+
+
+
+
