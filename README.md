@@ -85,6 +85,7 @@ $ docker compose build web
 - django-ingress.yaml
 - django-migrate-job.yaml
 - django-clearsessions-cronjob.yaml
+- django-service.yaml
 
 
 Для развёртывания проекта понадобится:
