@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: django-clearsessions-once
+  namespace: edu-roman-grachev 
 spec:
   schedule: "0 6 15 * *"
   startingDeadlineSeconds: 600
@@ -14,7 +15,7 @@ spec:
           containers:
           - name: django-clearsessions
             image: django_app:latest
-            imagePullPolicy: Never
+            imagePullPolicy: IfNotPresent
             command: ["python", "manage.py", "clearsessions"]
             envFrom:
               - configMapRef:

@@ -76,9 +76,19 @@ $ docker compose build web
 
 `DATABASE_URL` -- адрес для подключения к базе данных PostgreSQL. Другие СУБД сайт не поддерживает. [Формат записи](https://github.com/jacobian/dj-database-url#url-schema).
 
+
 ---
-## Как развернуть проект в Minikube
-#### ✅ Структура каталога `kubernetes/`
+# 🚀 Пошаговое развёртывание в кластере Kubernetes на Яндекс Облаке
+Кратко о среде
+- `Домен`: edu-roman-grachev.sirius-k8s.dvmn.org
+- `Namespace` Kubernetes: edu-roman-grachev
+- `Кластер`: Managed Kubernetes в Яндекс Облаке (yc-sirius или аналогичный, выделенный вам)
+- `База данных`: PostgreSQL (Managed Service Yandex) с защищённым SSL-подключением
+- `Docker Registry`: Docker Hub (используется для хранения и получения образов приложения)
+- `Object Storage`: Yandex S3 Bucket для статики и медиа с доступом через секреты Kubernetes
+
+
+#### Структура каталога `edu-roman-grachev/`
 - django-configmap.yaml
 - django-secret.yaml      # создается по инструкции
 - django-deployment.yaml
@@ -88,55 +98,18 @@ $ docker compose build web
 - django-service.yaml
 
 
-Для развёртывания проекта понадобится:
+#### Подготовка и загрузка в Docker Hub
 
-*   `Docker`: Для локальной разработки и запуска контейнеров. Установите его с [официального сайта](https://docs.docker.com/get-docker/).
-*   ``Minikube``: Для создания локального Kubernetes кластера. Инструкции по установке: [Minikube Installation](https://minikube.sigs.k8s.io/docs/start/).
-*   `kubectl`: Инструмент командной строки для управления Kubernetes кластерами. Инструкции по установке: [kubectl Installation](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
-*   `Helm`: Менеджер пакетов для Kubernetes. Инструкции по установке: [Helm Installation](https://helm.sh/docs/intro/install/).
-*   Драйвер виртуализации: Minikube требует драйвер для запуска кластера (например, Docker Desktop).
-
-
-## 🚀 Пошаговое развёртывание в Minikube
-
-### Шаг 1: Запуск Minikube кластера
-
-1. Запустите Minikube кластер. Рекомендуется выделить достаточно ресурсов для стабильной работы Django и PostgreSQL:
-```bash
-minikube start --driver=docker --memory=4096mb --cpus=2
-```
-
-2. Проверьте статус кластера, чтобы убедиться, что он запущен и все компоненты в порядке:
-
-```bash
-minikube status
-```
-
-3. Опционально откройте дашборд Kubernetes для визуального мониторинга кластера:
-```bash
-minikube dashboard
-```
-### Шаг 2: Настройка Ingress Controller и hosts-файла
-
-1. Включите ingress-nginx контроллер:
-```bash
-minikube addons enable ingress
-```
-2. Запустите туннель для корректной маршрутизации:
-```bash
-minikube tunnel
-```
-
-3. Добавьте в hosts-файл вашей ОС(C:\Windows\System32\drivers\etc\hosts для Windows или /etc/hosts для Linux/macOS) строку, где IP — вывод minikube ip:
-```bash
-ваш_IP  star-burger.test
-```
+1. Получить текущий git-хэш: `git rev-parse --short HEAD`
+2. Соберите Docker-образ: `docker build -t grroma:<git-хэш> -f ./backend_main_django`
+3. Добавьте тег: `docker tag grroma:<git-хэш>  grroma/django_app:<git-хэш>`
+4. Загрузите образ: `docker push grroma/django_app:<git-хэш>`
 
 
+#### Настройка Kubernetes ресурсов.
 
-### Шаг 3: Развёртывание базы данных PostgreSQL с помощью Helm
+- Создайте файл django-secret.yaml в edu-roman-grachev/ (укажите там свои SECRET_KEY и [DATABASE_URL](https://github.com/jazzband/dj-database-url)):
 
-1. Создайте файл django-secret.yaml в kubernetes/ (укажите там свои SECRET_KEY и [DATABASE_URL](https://github.com/jazzband/dj-database-url)):
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -145,58 +118,44 @@ metadata:
 type: Opaque
 stringData:
   SECRET_KEY: "ваш_секретный_ключ_django"
-  DATABASE_URL: postgres://test_k8s:OwOtBep9Frut@my-postgres-postgresql:5432/test_k8s
+  DATABASE_URL: "postgres://<user>:<password>@<host>:<port>/<dbname>"
 ```
 
-2. Развёртывание PostgreSQL в Minikube через [Helm](https://helm.sh/). Для установки PostgreSQL используем официальный [Helm chart от Bitnami](https://artifacthub.io/packages/helm/bitnami/postgresql).
+#### Запуск и проверка
+- Примените все ресурсы:
 
-- Войти в Docker Hub (если требуется)
 ```bash
-  helm registry login docker.io
-```
-- Установка PostgreSQL с паролем для пользователя postgres, замените yourpassword на желаемый пароль для пользователя postgres (и других, если вы их изменяете в DATABASE_URL):
-```bash
-  helm install my-postgres oci://registry-1.docker.io/bitnamicharts/postgresql --set auth.postgresPassword=yourpassword
-```
-- Проверьте, что поды PostgreSQL и Persistent Volume Claims (PVC) создались успешно и находятся в статусе Running/Bound:
-```bash
-  kubectl get pods -l app.kubernetes.io/name=postgresql
-  kubectl get pvc -l app.kubernetes.io/name=postgresql
-```
-- Опционально: Подключитесь к PostgreSQL из кластера для проверки или миграции данных.
-```bash
-  kubectl run pg-client --rm -ti --image=postgres --env="PGPASSWORD=yourpassword" --command -- psql -h my-postgres-postgresql -U postgres
-```
-### Шаг 4: Развёртывание Django приложения и сопутствующих компонентов
-
-1. Примените все Kubernetes манифесты из каталога kubernetes/. Это создаст Django Deployment, Service, Ingress, а также Job для миграций и CronJob для очистки сессий:
-    - Примечание: CronJob для очистки сессий настроен на запуск в 6:00 утра 15-го числа каждого месяца.
-```bash
-kubectl apply -f kubernetes/
+  kubectl apply -f edu-roman-grachev/
 ```
 
-2. Если вам нужно запустить применение миграций в ручную, то воспользуйтесь командой:
+- Примените по очередно:
 ```bash
-kubectl apply -f kubernetes/django-migrate-job.yaml
-```
-3. После изменения конфигурации или первого деплоя, перезапустите поды Django для применения изменений:
-```bash
-kubectl rollout restart deployment django-deployment
-```
-
-### Шаг 5: Проверка развёртывания
-1. Убедитесь, что все поды запущены (Running и READY 1/1).
-```bash
-kubectl get pods
+  kubectl apply -f django-service.yaml -n edu-roman-grachev
+  kubectl apply -f django-secret.yaml -n edu-roman-grachev
+  kubectl apply -f django-configmap.yaml -n edu-roman-grachev
+  kubectl apply -f django-deployment.yaml -n edu-roman-grachev
+  kubectl apply -f django-ingress.yaml -n edu-roman-grachev
+  kubectl apply -f django-migrate-job.yaml -n edu-roman-grachev
+  kubectl apply -f django-clearsessions-cronjob.yaml -n edu-roman-grachev
 ```
 
-2. Проверьте сервисы:
+#### Проверьте состояние подов, сервисов и Ingress:
+
 ```bash
-kubectl get services
+kubectl get pods -n edu-roman-grachev
+kubectl get svc -n edu-roman-grachev
+kubectl get ingress -n edu-roman-grachev
 ```
-3. Проверьте Ingress: Убедитесь, что у django-ingress появился IP-адрес (должен совпадать с minikube ip).
+
+#### Сайт доступен по адресу: https://edu-roman-grachev.sirius-k8s.dvmn.org
+
+#### Для доступа к сайту и админке через локальный проброс портов:
+
 ```bash
-kubectl get ingress
+kubectl port-forward service/django 8000:80 -n edu-roman-grachev
 ```
-4. Откройте приложение в браузере:
-http://star-burger.test/
+- Сайт будет доступен по адресу: http://localhost:8000
+- Админка: http://localhost:8000/admin/
+
+## Цели проекта
+Код написан в учебных целях — это урок в курсе по Python и веб-разработке на сайте [Devman](https://dvmn.org/).
