@@ -75,3 +75,87 @@ $ docker compose build web
 `ALLOWED_HOSTS` -- настройка Django со списком разрешённых адресов. Если запрос прилетит на другой адрес, то сайт ответит ошибкой 400. Можно перечислить несколько адресов через запятую, например `127.0.0.1,192.168.0.1,site.test`. [Документация Django](https://docs.djangoproject.com/en/3.2/ref/settings/#allowed-hosts).
 
 `DATABASE_URL` -- адрес для подключения к базе данных PostgreSQL. Другие СУБД сайт не поддерживает. [Формат записи](https://github.com/jacobian/dj-database-url#url-schema).
+
+
+---
+# 🚀 Пошаговое развёртывание в кластере Kubernetes на Яндекс Облаке
+Кратко о среде
+- `Домен`: edu-roman-grachev.sirius-k8s.dvmn.org
+- `Namespace` Kubernetes: edu-roman-grachev
+- `Кластер`: Managed Kubernetes в Яндекс Облаке (yc-sirius или аналогичный, выделенный вам)
+- `База данных`: PostgreSQL (Managed Service Yandex) с защищённым SSL-подключением
+- `Docker Registry`: Docker Hub (используется для хранения и получения образов приложения)
+- `Object Storage`: Yandex S3 Bucket для статики и медиа с доступом через секреты Kubernetes
+
+
+#### Структура каталога `edu-roman-grachev/`
+- django-configmap.yaml
+- django-secret.yaml      # создается по инструкции
+- django-deployment.yaml
+- django-ingress.yaml
+- django-migrate-job.yaml
+- django-clearsessions-cronjob.yaml
+- django-service.yaml
+
+
+#### Подготовка и загрузка в Docker Hub
+
+1. Получить текущий git-хэш: `git rev-parse --short HEAD`
+2. Соберите Docker-образ: `docker build -t grroma:<git-хэш> -f ./backend_main_django`
+3. Добавьте тег: `docker tag grroma:<git-хэш>  grroma/django_app:<git-хэш>`
+4. Загрузите образ: `docker push grroma/django_app:<git-хэш>`
+
+
+#### Настройка Kubernetes ресурсов.
+
+- Создайте файл django-secret.yaml в edu-roman-grachev/ (укажите там свои SECRET_KEY и [DATABASE_URL](https://github.com/jazzband/dj-database-url)):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: django-secret
+type: Opaque
+stringData:
+  SECRET_KEY: "ваш_секретный_ключ_django"
+  DATABASE_URL: "postgres://<user>:<password>@<host>:<port>/<dbname>"
+```
+
+#### Запуск и проверка
+- Примените все ресурсы:
+
+```bash
+  kubectl apply -f edu-roman-grachev/
+```
+
+- Примените по очередно:
+```bash
+  kubectl apply -f django-service.yaml -n edu-roman-grachev
+  kubectl apply -f django-secret.yaml -n edu-roman-grachev
+  kubectl apply -f django-configmap.yaml -n edu-roman-grachev
+  kubectl apply -f django-deployment.yaml -n edu-roman-grachev
+  kubectl apply -f django-ingress.yaml -n edu-roman-grachev
+  kubectl apply -f django-migrate-job.yaml -n edu-roman-grachev
+  kubectl apply -f django-clearsessions-cronjob.yaml -n edu-roman-grachev
+```
+
+#### Проверьте состояние подов, сервисов и Ingress:
+
+```bash
+kubectl get pods -n edu-roman-grachev
+kubectl get svc -n edu-roman-grachev
+kubectl get ingress -n edu-roman-grachev
+```
+
+#### Сайт доступен по адресу: https://edu-roman-grachev.sirius-k8s.dvmn.org
+
+#### Для доступа к сайту и админке через локальный проброс портов:
+
+```bash
+kubectl port-forward service/django 8000:80 -n edu-roman-grachev
+```
+- Сайт будет доступен по адресу: http://localhost:8000
+- Админка: http://localhost:8000/admin/
+
+## Цели проекта
+Код написан в учебных целях — это урок в курсе по Python и веб-разработке на сайте [Devman](https://dvmn.org/).
