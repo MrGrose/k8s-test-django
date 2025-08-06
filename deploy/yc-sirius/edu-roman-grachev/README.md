@@ -94,3 +94,39 @@ kubectl apply -f yc-sirius/edu-roman-grachev/deployment.yaml
 kubectl get pods -n edu-roman-grachev
 kubectl get svc -n edu-roman-grachev
 ```
+
+#### Создание Kubernetes Secret с SSL-сертификатом
+1. Получите файл сертификата root.crt, предназначенный для подключения к Managed PostgreSQL.
+
+2. Создайте секрет в Kubernetes в нужном namespace:
+
+```bash
+kubectl create secret generic pg-root-cert --from-file=root.crt=путь_к_root.crt -n edu-roman-grachev
+```
+
+3. Для обновления существующего секрета используйте команду:
+
+```bash
+kubectl create secret generic pg-root-cert --from-file=root.crt=путь_к_root.crt --dry-run=client -o yaml | kubectl apply -f - -n edu-roman-grachev
+```
+4. Использование секрета в подах. Добавьте в манифест пода или Deployment секцию volumes с указанием секрета и в контейнер — volumeMounts для монтирования сертификата:
+
+```text
+volumes:
+  - name: pg-root-cert
+    secret:
+      secretName: pg-root-cert
+      items:
+        - key: root.crt
+          path: root.crt
+
+containers:
+  - name: your-container
+    image: your-image
+    volumeMounts:
+      - name: pg-root-cert
+        mountPath: /var/lib/postgresql/root.crt
+        subPath: root.crt
+        readOnly: true
+```
+- Это позволит поду автоматически иметь доступ к актуальному SSL-сертификату без пересборки Docker-образа.
