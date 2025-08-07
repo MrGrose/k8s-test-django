@@ -14,7 +14,7 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: django-clearsessions
-            image: django_app:latest
+            image: grroma/django_app:bd7995a
             imagePullPolicy: IfNotPresent
             command: ["python", "manage.py", "clearsessions"]
             envFrom:
