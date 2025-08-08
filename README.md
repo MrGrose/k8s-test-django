@@ -120,6 +120,23 @@ stringData:
   SECRET_KEY: "ваш_секретный_ключ_django"
   DATABASE_URL: "postgres://<user>:<password>@<host>:<port>/<dbname>"
 ```
+#### Получение SSL-сертификата для подключения к базе данных PostgreSQL
+PostgreSQL-хосты с публичным доступом поддерживают только шифрованные соединения. Чтобы использовать их, получите SSL-сертификат
+
+- Linux(Bash)/macOS(Zsh)
+```bash
+  mkdir -p ~/.postgresql && \
+  wget "https://storage.yandexcloud.net/cloud-certs/CA.pem" \
+      --output-document ~/.postgresql/root.crt && \
+  chmod 0600 ~/.postgresql/root.crt
+```
+
+- Windows(PowerShell)
+```bash
+  mkdir $HOME\.postgresql; curl.exe -o $HOME\.postgresql\root.crt https://storage.yandexcloud.net/cloud-certs/CA.pem
+```
+
+Сертификат будет сохранен в файле $HOME\.postgresql\root.crt
 
 #### Запуск и проверка
 - Примените все ресурсы:
