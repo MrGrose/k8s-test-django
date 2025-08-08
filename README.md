@@ -156,7 +156,7 @@ PostgreSQL-хосты с публичным доступом поддержив�
   kubectl apply -f django-clearsessions-cronjob.yaml -n edu-roman-grachev
 ```
 
-#### Проверьте состояние подов, сервисов и Ingress:
+#### Проверьте состояние подов:
 
 ```bash
 kubectl get pods -n edu-roman-grachev
