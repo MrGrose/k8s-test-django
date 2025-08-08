@@ -150,7 +150,11 @@ PostgreSQL-хосты с публичным доступом поддержив�
 ```bash
 kubectl get pods -n edu-roman-grachev
 kubectl get svc -n edu-roman-grachev
-kubectl get ingress -n edu-roman-grachev
+```
+#### Создание суперпользователя:
+
+```bash
+kubectl exec -it <pod-name> -n edu-roman-grachev -- python manage.py createsuperuser
 ```
 
 #### Сайт доступен по адресу: https://edu-roman-grachev.sirius-k8s.dvmn.org
