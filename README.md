@@ -145,17 +145,6 @@ PostgreSQL-хосты с публичным доступом поддержив�
   kubectl apply -f edu-roman-grachev/
 ```
 
-- Примените по очередно:
-```bash
-  kubectl apply -f django-service.yaml -n edu-roman-grachev
-  kubectl apply -f django-secret.yaml -n edu-roman-grachev
-  kubectl apply -f django-configmap.yaml -n edu-roman-grachev
-  kubectl apply -f django-deployment.yaml -n edu-roman-grachev
-  kubectl apply -f django-ingress.yaml -n edu-roman-grachev
-  kubectl apply -f django-migrate-job.yaml -n edu-roman-grachev
-  kubectl apply -f django-clearsessions-cronjob.yaml -n edu-roman-grachev
-```
-
 #### Проверьте состояние подов:
 
 ```bash
